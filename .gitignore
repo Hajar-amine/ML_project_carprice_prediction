@@ -1,0 +1,6 @@
+autos.csv
+autos_clean.csv
+__pycache__/
+*.pyc
+.streamlit/
+.claude/
