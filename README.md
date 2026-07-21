@@ -6,7 +6,7 @@ données d'annonces automobiles en Allemagne.
 
 ## Application
 
-Application déployée : *(lien à ajouter après le déploiement sur Streamlit Cloud)*
+Application déployée : https://mlprojectcarpriceprediction-pq7rnsr3rwhb8wfrujchcm.streamlit.app/
 
 ## Structure du dépôt
 
