@@ -152,7 +152,8 @@ with col1:
     models_for_brand = options["brand_model"].get(brand, ["Unknown"])
     model_name = st.selectbox("Modèle", models_for_brand)
 
-    vehicle_type = st.selectbox("Type de véhicule", options["vehicleType"])
+    vehicle_types_for_brand = options["brand_vehicleType"].get(brand, options["vehicleType"])
+    vehicle_type = st.selectbox("Type de véhicule", vehicle_types_for_brand)
 
     gearbox = st.selectbox("Boîte de vitesses", options["gearbox"])
 

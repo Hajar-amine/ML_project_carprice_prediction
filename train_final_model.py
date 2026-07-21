@@ -168,9 +168,19 @@ brand_model = (
     .to_dict()
 )
 
+brand_vehicle_type = (
+    df[["brand", "vehicleType"]]
+    .dropna()
+    .drop_duplicates()
+    .groupby("brand")["vehicleType"]
+    .apply(lambda s: sorted(s.unique().tolist()))
+    .to_dict()
+)
+
 app_options = {
     "brand": sorted(df["brand"].dropna().unique().tolist()),
     "brand_model": brand_model,
+    "brand_vehicleType": brand_vehicle_type,
     "vehicleType": sorted(df["vehicleType"].dropna().unique().tolist()),
     "gearbox": sorted(df["gearbox"].dropna().unique().tolist()),
     "fuelType": sorted(df["fuelType"].dropna().unique().tolist()),
