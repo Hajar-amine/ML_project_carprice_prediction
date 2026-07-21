@@ -3,11 +3,14 @@
 # Étape VI du rapport : déploiement du modèle
 # ==========================================================
 
+from datetime import date
+
 import joblib
 import numpy as np
 import pandas as pd
 import shap
 import streamlit as st
+from fpdf import FPDF
 
 st.set_page_config(
     page_title="Estimation du prix d'une voiture d'occasion",
@@ -49,6 +52,65 @@ def get_feature_labels(preprocessor):
             labels.append(f"{column_label} = {category}")
 
     return labels
+
+
+def build_pdf_report(input_row, price, price_low, price_high, top_contrib):
+    """Construit un PDF récapitulatif de l'estimation. Les polices de base
+    de fpdf2 sont encodées en latin-1, qui ne contient pas le symbole '€' :
+    on utilise donc 'EUR' dans le PDF (les accents français, eux, passent)."""
+    pdf = FPDF()
+    pdf.add_page()
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "Estimation du prix d'une voiture d'occasion", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(110, 110, 110)
+    pdf.cell(0, 8, f"Genere le {date.today().strftime('%d/%m/%Y')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Caracteristiques du vehicule", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 11)
+
+    field_labels = {
+        "brand": "Marque",
+        "model": "Modele",
+        "vehicleType": "Type de vehicule",
+        "gearbox": "Boite de vitesses",
+        "fuelType": "Carburant",
+        "powerPS": "Puissance (ch)",
+        "kilometer": "Kilometrage (km)",
+        "notRepairedDamage": "Degat non repare"
+    }
+    for key, label in field_labels.items():
+        pdf.cell(0, 7, f"{label} : {input_row[key]}", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Resultat", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, f"Prix estime : {price:,.0f} EUR".replace(",", " "), new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(
+        0, 8,
+        f"Intervalle de confiance (~80%) : {price_low:,.0f} EUR - {price_high:,.0f} EUR".replace(",", " "),
+        new_x="LMARGIN", new_y="NEXT"
+    )
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Pourquoi ce prix ?", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+
+    for label, value in top_contrib.sort_values(ascending=False).items():
+        sign = "+" if value >= 0 else ""
+        pdf.cell(0, 6, f"{label} : {sign}{value:,.0f} EUR".replace(",", " "), new_x="LMARGIN", new_y="NEXT")
+
+    return bytes(pdf.output())
 
 # ----------------------------------------------------------
 # Chargement du pipeline et des options des menus
@@ -225,7 +287,7 @@ if st.button("Estimer le prix"):
     st.bar_chart(top_contrib, horizontal=True)
 
     # ------------------------------------------------------
-    # Export du résultat en CSV
+    # Export du résultat (CSV / PDF)
     # ------------------------------------------------------
 
     export_data = input_data.copy()
@@ -233,9 +295,28 @@ if st.button("Estimer le prix"):
     export_data["intervalle_bas_eur"] = round(price_low)
     export_data["intervalle_haut_eur"] = round(price_high)
 
-    st.download_button(
-        label="📥 Télécharger le résultat (CSV)",
-        data=export_data.to_csv(index=False).encode("utf-8"),
-        file_name="estimation_prix.csv",
-        mime="text/csv"
+    pdf_bytes = build_pdf_report(
+        input_data.iloc[0],
+        price,
+        price_low,
+        price_high,
+        top_contrib["Impact (€)"]
     )
+
+    col_csv, col_pdf = st.columns(2)
+
+    with col_csv:
+        st.download_button(
+            label="📥 Télécharger en CSV",
+            data=export_data.to_csv(index=False).encode("utf-8"),
+            file_name="estimation_prix.csv",
+            mime="text/csv"
+        )
+
+    with col_pdf:
+        st.download_button(
+            label="📄 Télécharger en PDF",
+            data=pdf_bytes,
+            file_name="estimation_prix.pdf",
+            mime="application/pdf"
+        )
